@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-YouTube Auto Dub - Day 02
-Added basic configuration and utilities
+YouTube Auto Dub - Day 03
+Added basic YouTube downloading functionality
 """
 
 import sys
@@ -11,9 +11,10 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 try:
-    from core_utils import setup_directories, validate_url
-except ImportError:
-    print("Error: core_utils not found!")
+    from core_utils import setup_directories, validate_url, get_video_id
+    from youtube import YouTubeDownloader
+except ImportError as e:
+    print(f"Error: {e}")
     sys.exit(1)
 
 def main():
@@ -26,13 +27,26 @@ def main():
     youtube_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Placeholder
     
     # Validate URL
-    if validate_url(youtube_url):
-        print(f"URL is valid: {youtube_url}")
-    else:
+    if not validate_url(youtube_url):
         print("Invalid URL!")
         return
     
-    # TODO: Implement YouTube video download
+    print(f"Processing URL: {youtube_url}")
+    
+    # Initialize YouTube downloader
+    downloader = YouTubeDownloader()
+    
+    # Get video info
+    video_info = downloader.get_video_info(youtube_url)
+    if video_info:
+        print(f"Video found: {video_info.get('title', 'Unknown')}")
+    else:
+        print("Failed to get video info!")
+        return
+    
+    # TODO: Implement actual video download
+    print("Ready to download video...")
+    
     # TODO: Implement audio processing
     # TODO: Implement text translation
     # TODO: Implement voice synthesis

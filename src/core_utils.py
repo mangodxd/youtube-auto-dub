@@ -1,5 +1,5 @@
 """
-Core Utilities - Day 02
+Core Utilities - Day 03
 Basic utility functions for the project
 """
 
@@ -48,3 +48,11 @@ class Config:
     # Video settings
     VIDEO_FORMAT = "mp4"
     AUDIO_FORMAT = "wav"
+
+class YouTubeError(Exception):
+    """Custom exception for YouTube-related errors"""
+    pass
+
+class AudioError(Exception):
+    """Custom exception for audio processing errors"""
+    pass

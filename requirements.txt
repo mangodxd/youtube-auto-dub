@@ -1,5 +1,5 @@
-# YouTube Auto Dub Requirements - Day 02
-# Basic dependencies with utilities
+# YouTube Auto Dub Requirements - Day 03
+# Added YouTube downloading capabilities
 
 # YouTube downloading
 yt-dlp>=2023.1.0
@@ -9,3 +9,6 @@ requests>=2.28.0
 
 # File handling
 pathlib2>=2.3.0
+
+# Audio processing (placeholder for future)
+numpy>=1.21.0
