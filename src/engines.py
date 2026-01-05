@@ -1,5 +1,5 @@
 """
-Consolidated AI/ML Engines Module for YouTube Auto Dub.
+AI/ML Engines Module for YouTube Auto Dub.
 
 This module provides the core AI/ML functionality including:
 - Device and configuration management
@@ -8,8 +8,8 @@ This module provides the core AI/ML functionality including:
 - Edge TTS synthesis
 - Pipeline orchestration and chunking
 
-Author: YouTube Auto Dub Team
-Version: 3.0 (Consolidated)
+Author: Nguyen Cong Thuan Huy (mangodxd)
+Version: 1.0.0
 """
 
 import torch

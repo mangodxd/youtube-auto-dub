@@ -10,8 +10,8 @@ This module provides advanced audio processing capabilities including:
 The module integrates Meta's Demucs model for high-quality source separation,
 enabling professional-grade audio ducking instead of using silence files.
 
-Author: YouTube Auto Dub Team
-Version: 3.0
+Author: Nguyen Cong Thuan Huy (mangodxd)
+Version: 1.0.0
 """
 
 import subprocess
@@ -36,6 +36,9 @@ class AudioSeparator(PipelineComponent):
         
         config_manager = ConfigManager()
         super().__init__(device_manager, config_manager)
+        
+        self._model = None
+        self._is_loaded = False
         
         print(f"[*] Audio Separator initialized")
     
@@ -66,6 +69,7 @@ class AudioSeparator(PipelineComponent):
             if self.device != "cpu":
                 self._model.to(self.device)
             
+            self._is_loaded = True
             print(f"[+] Demucs model loaded successfully")
             
             # Log model information
@@ -82,6 +86,14 @@ class AudioSeparator(PipelineComponent):
         """Unload Demucs model."""
         if self._model:
             del self._model
+            self._model = None
+            self._is_loaded = False
+    
+    def release_memory(self) -> None:
+        """Release VRAM and clean up GPU memory."""
+        self._unload_model()
+        self.device_manager.clear_cache()
+        print(f"[*] Audio Separator VRAM cleared")
 
     def separate_audio(self, audio_path: Path, output_dir: Optional[Path] = None) -> Tuple[Path, Path]:
         """Separate audio into background music and vocals."""

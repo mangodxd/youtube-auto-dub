@@ -1,3 +1,19 @@
+"""
+Google Translate Integration Module for YouTube Auto Dub.
+
+This module provides robust translation capabilities by implementing a dual-strategy 
+approach: the internal 'batchexecute' RPC API for high-quality results, and a 
+mobile web scraping fallback for maximum reliability.
+
+Acknowlegement: 
+This implementation is inspired by and adapted from the logic found in the 
+'deep-translator' library (nidhaloff/deep-translator). Optimized and 
+refactored for the YouTube Auto Dub pipeline requirements.
+
+Author: Nguyen Cong Thuan Huy (mangodxd)
+Version: 1.0.0
+"""
+
 import json
 import re
 import httpx
@@ -128,8 +144,7 @@ class GoogleTranslator:
         try:
             return self._translate_rpc(text, source, target)
         except Exception as e:
-            # Log failure if debugging, otherwise silent switch
-            # print(f"[Info] RPC method failed ({e}). Switching to scraper fallback.")
+            # Silent fallback to scraping
             pass
 
         # Strategy 2: Scrape Fallback

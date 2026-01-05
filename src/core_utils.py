@@ -4,8 +4,8 @@ Core utilities and exceptions for YouTube Auto Dub.
 This module consolidates shared utilities, exceptions, and helper functions
 used across the entire pipeline to reduce code duplication.
 
-Author: YouTube Auto Dub Team
-Version: 3.0
+Author: Nguyen Cong Thuan Huy (mangodxd)
+Version: 1.0.0
 """
 
 import subprocess

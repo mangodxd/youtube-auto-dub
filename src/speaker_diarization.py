@@ -11,8 +11,8 @@ Features:
 - Voice assignment for multiple speakers
 - Integration with Edge TTS voice mapping
 
-Author: YouTube Auto Dub Team
-Version: 3.0
+Author: Nguyen Cong Thuan Huy (mangodxd)
+Version: 1.0.0
 """
 
 import torch
@@ -37,6 +37,8 @@ class SpeakerDiarizer(PipelineComponent):
         super().__init__(device_manager, config_manager)
         
         self.hf_token = hf_token
+        self._model = None
+        self._is_loaded = False
         
         print(f"[*] Speaker Diarizer initialized")
         
@@ -80,6 +82,7 @@ class SpeakerDiarizer(PipelineComponent):
             if self.device != "cpu":
                 self._model.to(self.device)
             
+            self._is_loaded = True
             print(f"[+] Pyannote pipeline loaded successfully")
             
             # Log memory usage if on GPU
@@ -96,6 +99,14 @@ class SpeakerDiarizer(PipelineComponent):
         """Unload Pyannote model."""
         if self._model:
             del self._model
+            self._model = None
+            self._is_loaded = False
+    
+    def release_memory(self) -> None:
+        """Release VRAM and clean up GPU memory."""
+        self._unload_model()
+        self.device_manager.clear_cache()
+        print(f"[*] Speaker Diarizer VRAM cleared")
 
     def diarize_audio(self, audio_path: Path, min_speakers: int = 1, max_speakers: int = 8) -> Dict:
         """Perform speaker diarization on audio file."""

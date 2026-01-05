@@ -13,8 +13,8 @@ into different languages using AI/ML technologies. The pipeline handles:
 Example:
     python main.py "https://youtube.com/watch?v=VIDEO_ID" --lang es --gender female
 
-Author: YouTube Auto Dub Team
-Version: 2.0
+Author: Nguyen Cong Thuan Huy (mangodxd)
+Version: 1.0.0
 License: MIT
 """
 
@@ -44,6 +44,8 @@ def check_dependencies() -> None:
     from shutil import which
     
     # TODO: Add version checks for FFmpeg and PyTorch
+    # TODO: Add support for local LLM translation models
+    # TODO: Implement 4K rendering profile support
     missing = []
     if not which("ffmpeg"): 
         missing.append("ffmpeg")

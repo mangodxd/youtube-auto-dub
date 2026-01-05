@@ -12,8 +12,8 @@ using yt-dlp. It handles:
 The module focuses on reliability and provides comprehensive error
 messages to help users troubleshoot download issues.
 
-Author: YouTube Auto Dub Team
-Version: 2.0
+Author: Nguyen Cong Thuan Huy (mangodxd)
+Version: 1.0.0
 """
 
 import yt_dlp

@@ -56,7 +56,7 @@ YouTube Auto Dub is a comprehensive Python pipeline that automatically:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/youtube-auto-dub.git
+git clone https://github.com/mangodxd/youtube-auto-dub.git
 cd youtube-auto-dub
 
 # Install Python dependencies
@@ -140,17 +140,21 @@ YouTube URL → Download → Transcribe → Chunk → Translate → TTS → Sync
 ### Core Components
 
 - **`main.py`**: CLI interface and pipeline orchestration
-- **`src/config.py`**: Configuration management and validation
 - **`src/engines.py`**: AI/ML engines (Whisper, Translator, TTS)
 - **`src/youtube.py`**: YouTube content downloading
 - **`src/media.py`**: Audio/video processing with FFmpeg
-- **`src/core.py`**: High-level pipeline orchestration
+- **`src/audio_separation.py`**: Demucs audio source separation
+- **`src/speaker_diarization.py`**: Pyannote speaker identification
+- **`src/googlev4.py`**: Google Translate integration
+- **`src/core_utils.py`**: Shared utilities and exceptions
 
 ### AI Models Used
 
 - **Whisper**: OpenAI's speech recognition model
 - **Google Translate**: Web scraping for translation
 - **Edge TTS**: Microsoft's neural text-to-speech
+- **Demucs**: Meta's audio source separation
+- **Pyannote.audio**: Speaker diarization
 
 ## 🛠️ Configuration
 
@@ -172,7 +176,7 @@ Edit `language_map.json` to customize voice mappings:
 
 ### Audio Settings
 
-Modify `src/config.py` for audio parameters:
+Modify `src/engines.py` for audio parameters:
 
 ```python
 SAMPLE_RATE = 24000      # Audio sample rate (Hz)
@@ -255,12 +259,13 @@ youtube-auto-dub/
 ├── language_map.json      # Language-to-voice mappings
 ├── README.md              # This file
 ├── src/                   # Source code
-│   ├── config.py          # Configuration management
 │   ├── engines.py         # AI/ML engines
 │   ├── youtube.py         # YouTube downloader
 │   ├── media.py           # Audio/video processing
-│   ├── core.py            # Pipeline orchestration
-│   └── googlev4.py        # Google Translate scraper
+│   ├── audio_separation.py # Demucs audio separation
+│   ├── speaker_diarization.py # Pyannote speaker diarization
+│   ├── googlev4.py       # Google Translate scraper
+│   └── core_utils.py      # Shared utilities
 ├── tests/                 # Test files
 ├── .cache/               # Downloaded YouTube content
 ├── output/               # Final dubbed videos
@@ -268,19 +273,6 @@ youtube-auto-dub/
 ```
 
 ## 🧪 Development
-
-### Running Tests
-
-```bash
-# Install test dependencies
-pip install pytest pytest-cov
-
-# Run tests
-pytest tests/
-
-# Run with coverage
-pytest --cov=src tests/
-```
 
 ### Code Style
 
@@ -290,13 +282,13 @@ The project follows Google Style docstrings and includes:
 - Error handling with descriptive messages
 - TODO and NOTE comments for future improvements
 
-### Contributing
+### Future Roadmap
 
-1. Fork the repository
-2. Create a feature branch
-3. Make changes with proper documentation
-4. Add tests for new functionality
-5. Submit a pull request
+- [ ] Local LLM translation support
+- [ ] 4K rendering profiles
+- [ ] Voice cloning integration
+- [ ] Batch processing capabilities
+- [ ] Web interface for easier usage
 
 ## 📄 License
 
@@ -310,6 +302,8 @@ Most dependencies are open-source:
 - **yt-dlp**: Unlicense
 - **Edge TTS**: MIT (uses Microsoft service)
 - **librosa**: ISC
+- **demucs**: MIT
+- **pyannote.audio**: MIT
 
 ## 🤝 Acknowledgments
 
@@ -321,27 +315,23 @@ Most dependencies are open-source:
 
 ## 📞 Support
 
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/your-username/youtube-auto-dub/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/your-username/youtube-auto-dub/discussions)
-- 📧 **Email**: your-email@example.com
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/mangodxd/youtube-auto-dub/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/mangodxd/youtube-auto-dub/discussions)
 
 ## 🔄 Changelog
 
-### Version 2.0
-- ✨ Complete documentation overhaul with Google/OpenAI style docstrings
-- 🚀 Enhanced error handling and user feedback
+### Version 1.0.0
+- 🎉 Complete refactoring and consolidation
+- 📝 Google Style docstrings throughout
+- 🏷️ Personal branding by Nguyen Cong Thuan Huy (mangodxd)
+- 🧹 Comprehensive code cleanup and optimization
+- 💾 Enhanced memory management and GPU optimization
 - 🌍 Improved language support and voice mapping
-- ⚡ Better memory management and GPU optimization
-- 🛠️ Comprehensive configuration options
-- 📖 Detailed troubleshooting guide
-
-### Version 1.0
-- 🎉 Initial release with basic dubbing pipeline
-- 🤖 Whisper transcription integration
-- 🗣️ Edge TTS synthesis
-- 🌐 Google Translate integration
-- 📹 YouTube video processing
+- 🎬 Advanced audio separation and speaker diarization
+- � Subtitle generation and rendering support
+- 🛠️ Unified logging system with clear prefixes
+- 📖 Comprehensive documentation and troubleshooting
 
 ---
 
-**Made with ❤️ by the YouTube Auto Dub Team**
+**Made with ❤️ by Nguyen Cong Thuan Huy (mangodxd)**

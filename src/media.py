@@ -13,8 +13,8 @@ All operations use FFmpeg as the backend for maximum compatibility
 and quality. The module includes comprehensive error handling and
 validation for all media operations.
 
-Author: YouTube Auto Dub Team
-Version: 2.0
+Author: Nguyen Cong Thuan Huy (mangodxd)
+Version: 1.0.0
 """
 
 import subprocess
@@ -188,7 +188,9 @@ def fit_audio(audio_path: Path, target_dur: float, max_speedup: float = 1.8) -> 
     For extreme speedup ratios, audio may sound unnatural but will
     maintain synchronization with the video timeline.
     
-    TODO: Add quality options for better audio preservation.
+    TODO: Add quality options for better audio preservation
+    TODO: Add support for local voice cloning models
+    TODO: Production: Investigate audio quality degradation at high speedup ratios
     """
     if not audio_path.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
@@ -510,3 +512,80 @@ def render_video(video_path: Path, concat_file: Path, output_path: Path, subtitl
         raise RuntimeError(f"FFmpeg timeout rendering video: {video_path}")
     except Exception as e:
         raise RuntimeError(f"Video rendering failed: {e}")
+
+
+def generate_srt(segments: List[Dict], output_path: Path) -> None:
+    """Generate SRT subtitle file from transcript segments.
+    
+    This function creates an SRT subtitle file from transcript segments
+    with timing information. The subtitles are formatted according to
+    the SRT standard and can be used for video rendering.
+    
+    Args:
+        segments: List of transcript segments with 'start', 'end', 'trans_text' keys.
+        output_path: Path where the SRT file will be saved.
+        
+    Raises:
+        FileNotFoundError: If output directory doesn't exist.
+        ValueError: If segment format is invalid.
+        
+    Example:
+        >>> generate_srt(chunks, Path("subtitles.srt"))
+        >>> print("SRT file generated")
+        
+    TODO: Add subtitle formatting options and style customization.
+    """
+    if not segments:
+        print(f"[!] WARNING: No segments provided for subtitle generation")
+        return
+    
+    # Validate segment format
+    required_keys = {'start', 'end', 'trans_text'}
+    for i, seg in enumerate(segments):
+        if not required_keys.issubset(seg.keys()):
+            raise ValueError(f"Segment {i} missing required keys: {required_keys - seg.keys()}")
+        if seg['start'] >= seg['end']:
+            raise ValueError(f"Segment {i} has invalid timing: start >= end")
+    
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        print(f"[*] Generating SRT subtitles: {output_path}")
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            for i, segment in enumerate(segments, 1):
+                start_time = segment['start']
+                end_time = segment['end']
+                text = segment.get('trans_text', segment.get('text', ''))
+                
+                # Format timestamps as HH:MM:SS,mmm
+                start_srt = _format_timestamp_srt(start_time)
+                end_srt = _format_timestamp_srt(end_time)
+                
+                # Write SRT block
+                f.write(f"{i}\n")
+                f.write(f"{start_srt} --> {end_srt}\n")
+                f.write(f"{text.strip()}\n\n")
+        
+        print(f"[+] SRT subtitles generated: {output_path}")
+        print(f"    Total subtitles: {len(segments)}")
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to generate SRT file: {e}") from e
+
+
+def _format_timestamp_srt(seconds: float) -> str:
+    """Convert seconds to SRT timestamp format (HH:MM:SS,mmm).
+    
+    Args:
+        seconds: Time in seconds.
+        
+    Returns:
+        Formatted timestamp string.
+    """
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    milliseconds = int((seconds % 1) * 1000)
+    
+    return f"{hours:02d}:{minutes:02d}:{secs:02d},{milliseconds:03d}"
