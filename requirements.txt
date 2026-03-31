@@ -11,3 +11,7 @@ soundfile
 tqdm
 pathlib
 typing-extensions
+# Optional: CAMB AI SDK for high-quality TTS, voice cloning, and audio separation
+# Install with: pip install camb-sdk
+# Requires CAMB_API_KEY environment variable
+camb-sdk

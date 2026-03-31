@@ -290,8 +290,10 @@ class Engine(PipelineComponent):
             print(f"[*] Loading Whisper model ({ASR_MODEL}) on {self.device}...")
             try:
                 from faster_whisper import WhisperModel
-                compute_type = "float16" if self.device == "cuda" else "int8"
-                self._asr = WhisperModel(ASR_MODEL, device=self.device, compute_type=compute_type)
+                # faster-whisper only supports cuda and cpu (not mps)
+                whisper_device = self.device if self.device == "cuda" else "cpu"
+                compute_type = "float16" if whisper_device == "cuda" else "int8"
+                self._asr = WhisperModel(ASR_MODEL, device=whisper_device, compute_type=compute_type)
                 print(f"[+] Whisper model loaded successfully")
             except Exception as e:
                 raise ModelLoadError(f"Failed to load Whisper model: {e}") from e
