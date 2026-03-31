@@ -201,78 +201,152 @@ def create_concat_file(segments: List[Dict], silence_ref: Path, output_txt: Path
         raise RuntimeError(f"Failed to create concat manifest: {e}")
 
 
-def render_video(video_path: Path, concat_file: Path, output_path: Path, subtitle_path: Optional[Path] = None) -> None:
-    """Render final video with Dynamic Volume Mixing."""
-    if not video_path.exists() or not concat_file.exists():
-        raise FileNotFoundError("Input files for rendering missing")
+def _check_subtitle_filter() -> bool:
+    """Check if FFmpeg has the subtitles filter (requires libass)."""
+    try:
+        result = subprocess.run(
+            ['ffmpeg', '-filters'], capture_output=True, text=True, timeout=10
+        )
+        return 'subtitles' in result.stdout
+    except Exception:
+        return False
+
+
+def render_video(video_path: Path, concat_file: Optional[Path], output_path: Path, subtitle_path: Optional[Path] = None, background_audio: Optional[Path] = None) -> None:
+    """Render final video with Dynamic Volume Mixing.
+
+    Supports three modes:
+    - Dubbed: concat_file provided, mixes dubbed audio with original/background
+    - Subtitle-only: concat_file is None, burns subtitles onto original video
+    - Dubbed + separated BGM: concat_file + background_audio for clean mixing
+    """
+    if not video_path.exists():
+        raise FileNotFoundError(f"Video file not found: {video_path}")
+    if concat_file is not None and not concat_file.exists():
+        raise FileNotFoundError(f"Concat file not found: {concat_file}")
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     try:
         print(f"[*] Rendering final video...")
-        
-        # DYNAMIC VOLUME MIXING STRATEGY:
-        # Analyze original audio loudness to determine optimal background volume
-        original_loudness = _analyze_audio_loudness(video_path)
-        
-        if original_loudness is not None:
-            # Calculate background volume based on loudness analysis
-            # Target: voice should be 10-15dB louder than background
-            if original_loudness > -10:  # Very loud audio
-                bg_volume = 0.08  # 8% - reduce more for loud content
-            elif original_loudness > -20:  # Normal audio
-                bg_volume = 0.15  # 15% - standard reduction
-            else:  # Quiet audio
-                bg_volume = 0.25  # 25% - reduce less for quiet content
-                
+
+        # Check if FFmpeg has subtitles filter support
+        has_subtitle_filter = _check_subtitle_filter()
+
+        # === SUBTITLE-ONLY MODE (no dubbed audio) ===
+        if concat_file is None:
+            cmd = [
+                'ffmpeg', '-y', '-v', 'error',
+                '-i', str(video_path),
+                '-map', '0:v', '-map', '0:a',
+                '-c:a', 'copy',
+            ]
+
+            if subtitle_path and subtitle_path.exists() and has_subtitle_filter:
+                sub_path = str(subtitle_path.resolve())
+                sub_path = sub_path.replace("\\", "\\\\").replace(":", "\\:").replace("'", "'\\''")
+                cmd.extend(['-c:v', 'libx264', '-vf', f"subtitles='{sub_path}'"])
+            else:
+                cmd.extend(['-c:v', 'copy'])
+                if subtitle_path and subtitle_path.exists() and not has_subtitle_filter:
+                    print(f"[-] FFmpeg lacks subtitles filter (needs libass). SRT saved separately.")
+
+            cmd.append(str(output_path))
+            subprocess.run(cmd, check=True, timeout=None)
+
+            if not output_path.exists():
+                raise RuntimeError("Output file not created")
+            print(f"[+] Video rendered successfully: {output_path}")
+            return
+
+        # === DUBBED MODE (with TTS audio) ===
+
+        # Determine background audio source
+        bg_source = background_audio if (background_audio and background_audio.exists()) else None
+
+        # Dynamic volume mixing
+        analyze_target = bg_source or video_path
+        original_loudness = _analyze_audio_loudness(analyze_target)
+
+        if bg_source:
+            # When we have separated background, keep it at higher volume
+            bg_volume = 0.5
+            print(f"[*] Using separated background audio at {bg_volume*100:.0f}% volume")
+        elif original_loudness is not None:
+            if original_loudness > -10:
+                bg_volume = 0.08
+            elif original_loudness > -20:
+                bg_volume = 0.15
+            else:
+                bg_volume = 0.25
             print(f"[*] Dynamic volume mixing: original={original_loudness:.1f}dB, bg_volume={bg_volume*100:.0f}%")
         else:
-            # Fallback to default if analysis fails
             bg_volume = 0.15
             print(f"[*] Using default volume mixing: bg_volume={bg_volume*100:.0f}%")
-        
-        filter_complex = (
-            f"[0:a]volume={bg_volume}[bg]; "
-            "[bg][1:a]amix=inputs=2:duration=first:dropout_transition=0[outa]"
-        )
 
-        cmd = [
-            'ffmpeg', '-y', '-v', 'error',
-            '-i', str(video_path),
-            '-f', 'concat', '-safe', '0', '-i', str(concat_file),
-            '-filter_complex', filter_complex,
-            '-map', '0:v', 
-            '-map', '[outa]',
-            '-c:v', 'copy',      # Fast video copy (if no subs)
-            '-c:a', 'aac', '-b:a', '192k',
-            '-ar', str(SAMPLE_RATE),
-            '-ac', str(AUDIO_CHANNELS),
-            '-shortest'
-        ]
-        
-        # Handle Hard Subtitles (Requires re-encoding)
-        if subtitle_path:
-            # Escape path for FFmpeg filter
-            sub_path = str(subtitle_path.resolve()).replace("\\", "/").replace(":", "\\:")
-            
-            # Switch video codec to libx264 for re-encoding
-            idx_copy = cmd.index('copy')
-            cmd[idx_copy] = 'libx264'
-            
-            # Insert subtitle filter
-            cmd.insert(idx_copy, '-vf')
-            cmd.insert(idx_copy + 1, f"subtitles='{sub_path}'")
-        
+        # Build subtitle filter if needed (requires libass in FFmpeg)
+        sub_filter = ""
+        video_codec = "copy"
+        if subtitle_path and subtitle_path.exists() and has_subtitle_filter:
+            sub_path = str(subtitle_path.resolve())
+            sub_path = sub_path.replace("\\", "\\\\").replace(":", "\\:").replace("'", "'\\''")
+            sub_filter = f"[0:v]subtitles='{sub_path}'[outv]; "
+            video_codec = "libx264"
+            video_map = "[outv]"
+        else:
+            video_map = "0:v"
+            if subtitle_path and subtitle_path.exists() and not has_subtitle_filter:
+                print(f"[-] FFmpeg lacks subtitles filter (needs libass). SRT saved separately.")
+
+        if bg_source:
+            filter_complex = (
+                f"{sub_filter}"
+                f"[2:a]volume={bg_volume}[bg]; "
+                "[bg][1:a]amix=inputs=2:duration=first:dropout_transition=0[outa]"
+            )
+            cmd = [
+                'ffmpeg', '-y', '-v', 'error',
+                '-i', str(video_path),
+                '-f', 'concat', '-safe', '0', '-i', str(concat_file),
+                '-i', str(bg_source),
+                '-filter_complex', filter_complex,
+                '-map', video_map,
+                '-map', '[outa]',
+                '-c:v', video_codec,
+                '-c:a', 'aac', '-b:a', '192k',
+                '-ar', str(SAMPLE_RATE),
+                '-ac', str(AUDIO_CHANNELS),
+                '-shortest'
+            ]
+        else:
+            filter_complex = (
+                f"{sub_filter}"
+                f"[0:a]volume={bg_volume}[bg]; "
+                "[bg][1:a]amix=inputs=2:duration=first:dropout_transition=0[outa]"
+            )
+            cmd = [
+                'ffmpeg', '-y', '-v', 'error',
+                '-i', str(video_path),
+                '-f', 'concat', '-safe', '0', '-i', str(concat_file),
+                '-filter_complex', filter_complex,
+                '-map', video_map,
+                '-map', '[outa]',
+                '-c:v', video_codec,
+                '-c:a', 'aac', '-b:a', '192k',
+                '-ar', str(SAMPLE_RATE),
+                '-ac', str(AUDIO_CHANNELS),
+                '-shortest'
+            ]
+
         cmd.append(str(output_path))
-        
-        # Run rendering
-        subprocess.run(cmd, check=True, timeout=None) # No timeout for rendering
-        
+
+        subprocess.run(cmd, check=True, timeout=None)
+
         if not output_path.exists():
             raise RuntimeError("Output file not created")
-            
+
         print(f"[+] Video rendered successfully: {output_path}")
-        
+
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"FFmpeg rendering failed: {e}")
     except Exception as e:

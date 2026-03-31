@@ -6,3 +6,5 @@ output/
 *.mp4
 *.wav
 *.mp3
+.env
+venv/
