@@ -43,12 +43,13 @@ async def run_pipeline(args):
 
         console.info(f"Transcribing speech ({model_size})")
         model = WhisperModel(model_size, device=device, compute_type="float16" if device == "cuda" else "int8")
-        segs, _ = model.transcribe(str(project.audio_path), word_timestamps=False)
+        segs, info = model.transcribe(str(project.audio_path), word_timestamps=False)
+        detected_lang = info.language if info else None
         raw_segments = [{'start': s.start, 'end': s.end, 'text': s.text.strip()} for s in segs]
         
         del model
         if device == "cuda": torch.cuda.empty_cache()
-        console.success("Transcription complete")
+        console.success(f"Transcription complete (detected: {detected_lang})")
 
         console.info("Analyzing silence gaps")
         project.segments = smart_chunk(raw_segments)
@@ -58,8 +59,12 @@ async def run_pipeline(args):
         translator = GoogleTranslator()
         
         if args.mode in ["sub", "both"]:
-            console.step(f"Translating {len(texts)} subtitle segments -> {final_lang_sub.upper()}")
-            sub_texts = await translator.translate_batch(texts, target=final_lang_sub)
+            if detected_lang and detected_lang == final_lang_sub:
+                console.step(f"Source language matches target ({final_lang_sub}), skipping translation")
+                sub_texts = texts
+            else:
+                console.step(f"Translating {len(texts)} subtitle segments -> {final_lang_sub.upper()}")
+                sub_texts = await translator.translate_batch(texts, source=detected_lang or "auto", target=final_lang_sub)
             for i, seg in enumerate(project.segments):
                 res_sub = sub_texts[i].strip() if i < len(sub_texts) else ""
                 seg.translated_text_sub = res_sub if res_sub else seg.source_text
@@ -67,9 +72,12 @@ async def run_pipeline(args):
         if args.mode in ["dub", "both"]:
             if args.mode == "both" and final_lang_dub == final_lang_sub:
                 dub_texts = sub_texts
+            elif detected_lang and detected_lang == final_lang_dub:
+                console.step(f"Source language matches target ({final_lang_dub}), skipping translation")
+                dub_texts = texts
             else:
                 console.step(f"Translating {len(texts)} dubbing scripts -> {final_lang_dub.upper()}")
-                dub_texts = await translator.translate_batch(texts, target=final_lang_dub)
+                dub_texts = await translator.translate_batch(texts, source=detected_lang or "auto", target=final_lang_dub)
                 
             for i, seg in enumerate(project.segments):
                 res_dub = dub_texts[i].strip() if i < len(dub_texts) else ""

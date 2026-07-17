@@ -7,7 +7,7 @@ from .ui import console
 
 class GoogleTranslator:
     def __init__(self):
-        self.client = httpx.AsyncClient(timeout=15)
+        self.client = httpx.AsyncClient(timeout=30)
         self.base_url_rpc = "https://translate.google.com/_/TranslateWebserverUi/data/batchexecute"
         self.base_url_scrape = "https://translate.google.com/m"
         self.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -128,28 +128,34 @@ class GoogleTranslator:
         """
         if not text:
             return ""
-            
+
+        # Nếu ngôn ngữ nguồn trùng với ngôn ngữ đích, không cần dịch
+        if source != "auto" and source == target:
+            return text
+
+        # Thử RPC API trước
         try:
             return await self._translateRpc(text, source, target)
         except Exception:
             pass
 
+        # Thử scrape fallback
         try:
             return await self._translateScrape(text, source, target)
         except Exception as e:
             console.error(f"All translation methods failed: {e}")
             return text
 
-    async def translate_batch(self, texts: List[str], target: str) -> List[str]:
+    async def translate_batch(self, texts: List[str], target: str, source: str = "auto") -> List[str]:
         delimiter = "\n\n|||\n\n"
         combined = delimiter.join([t if t.strip() else " " for t in texts])
-        
-        translated_combined = await self.translate(combined, target=target)
+
+        translated_combined = await self.translate(combined, source=source, target=target)
         results = [t.strip() for t in translated_combined.split(delimiter.strip())]
-        
+
         if len(results) != len(texts):
-            results = [await self.translate(t, target=target) for t in texts]
-        
+            results = [await self.translate(t, source=source, target=target) for t in texts]
+
         return results
 
     async def close(self):
