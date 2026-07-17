@@ -1,8 +1,22 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+*.egg
+
+# Project runtime
 .cache/
 temp/
 output/
 *.mp4
 *.wav
 *.mp3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

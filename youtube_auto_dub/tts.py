@@ -1,12 +1,29 @@
-import json
+"""Edge TTS synthesis with retry logic."""
+
 import asyncio
-import edge_tts
+import json
 from pathlib import Path
-from .models import LANG_MAP_PATH
-from .ui import console
+
+import edge_tts
+
+from youtube_auto_dub.models import LANG_MAP_PATH
+from youtube_auto_dub.ui import console
 
 
 def get_voice(lang_code: str, gender: str = "male") -> str:
+    """Look up the first available voice for a language and gender.
+
+    Args:
+        lang_code: ISO language code (e.g., 'vi', 'en').
+        gender: Voice gender ('male' or 'female').
+
+    Returns:
+        Voice name string (e.g., 'vi-VN-HoaiMyNeural').
+
+    Raises:
+        FileNotFoundError: If language_map.json is missing.
+        ValueError: If language code is not found.
+    """
     if not LANG_MAP_PATH.exists():
         raise FileNotFoundError(f"Language map file not found: {LANG_MAP_PATH}")
 
@@ -14,12 +31,12 @@ def get_voice(lang_code: str, gender: str = "male") -> str:
         data = json.load(f)
 
     if lang_code not in data:
-        raise ValueError(f"Language {lang_code} not found in lang_map.json")
+        raise ValueError(f"Language {lang_code} not found in language_map.json")
 
     voices = data[lang_code]["voices"].get(gender, [])
 
     if not voices:
-        # fallback: choose the other gender if available
+        # Fallback: choose the other gender
         other_gender = "female" if gender == "male" else "male"
         voices = data[lang_code]["voices"].get(other_gender, [])
         if not voices:
@@ -53,8 +70,6 @@ async def tts(
     for attempt in range(max_retries + 1):
         try:
             communicate = edge_tts.Communicate(text, voice)
-            # The save() call is async but doesn't natively support timeout.
-            # asyncio.wait_for wraps it with a deadline.
             await asyncio.wait_for(
                 communicate.save(str(output)),
                 timeout=timeout,

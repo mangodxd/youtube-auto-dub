@@ -1,5 +1,9 @@
 # youtube-auto-dub
 
+[![CI](https://github.com/mangodxd/youtube-auto-dub/actions/workflows/ci.yml/badge.svg)](https://github.com/mangodxd/youtube-auto-dub/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Python pipeline that takes a YouTube URL and spits out a dubbed/subtitled video. Feed it a link, pick a target language, and it handles the rest — downloading, transcribing, translating, synthesizing speech, and rendering the final video.
 
 We built this because existing tools were either too manual, too expensive, or too locked-in. This one runs locally, stays free, and gives you full control over the output.
@@ -26,7 +30,7 @@ YouTube URL → Download → Transcribe (Whisper) → Chunk → Translate → TT
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - FFmpeg in your PATH
 - (Optional) CUDA for faster Whisper inference
 
@@ -43,9 +47,15 @@ sudo apt install ffmpeg
 ### Install
 
 ```bash
+pip install youtube-auto-dub
+```
+
+Or install from source:
+
+```bash
 git clone https://github.com/mangodxd/youtube-auto-dub.git
 cd youtube-auto-dub
-pip install -r requirements.txt
+pip install .
 ```
 
 For GPU support:
@@ -59,19 +69,25 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ```bash
 # Dub + subtitles in Vietnamese (default)
+youtube-auto-dub "https://youtube.com/watch?v=VIDEO_ID"
+
+# Or via python -m
+python -m youtube_auto_dub "https://youtube.com/watch?v=VIDEO_ID"
+
+# Or legacy entry point (still works)
 python main.py "https://youtube.com/watch?v=VIDEO_ID"
 
 # Just subtitles, in Spanish
-python main.py "https://youtube.com/watch?v=VIDEO_ID" --mode sub --lang es
+youtube-auto-dub "https://youtube.com/watch?v=VIDEO_ID" --mode sub --lang es
 
 # Dubbing only, French, female voice
-python main.py "https://youtube.com/watch?v=VIDEO_ID" --mode dub --lang fr --gender female
+youtube-auto-dub "https://youtube.com/watch?v=VIDEO_ID" --mode dub --lang fr --gender female
 
 # Different languages for subs and dub
-python main.py "https://youtube.com/watch?v=VIDEO_ID" --mode both --lang_sub en --lang_dub vi
+youtube-auto-dub "https://youtube.com/watch?v=VIDEO_ID" --mode both --lang_sub en --lang_dub vi
 
 # Age-restricted or private video — pull cookies from your browser
-python main.py "https://youtube.com/watch?v=VIDEO_ID" --lang es --browser chrome
+youtube-auto-dub "https://youtube.com/watch?v=VIDEO_ID" --lang es --browser chrome
 ```
 
 ### All options
@@ -91,7 +107,7 @@ python main.py "https://youtube.com/watch?v=VIDEO_ID" --lang es --browser chrome
 
 ## Language & voice config
 
-Voices are mapped in `language_map.json`. Edit it to change defaults or add new languages:
+Voices are mapped in `language_map.json` inside the package. Edit it to change defaults or add new languages:
 
 ```json
 {
@@ -113,20 +129,37 @@ Common codes: `es` · `fr` · `de` · `it` · `pt` · `ja` · `ko` · `zh` · `a
 
 ```
 youtube-auto-dub/
-├── main.py                 # Entry point, CLI, pipeline orchestration
-├── language_map.json       # Language → voice mappings
-├── requirements.txt
-└── src/
+├── pyproject.toml           # Package config, dependencies, CLI entry
+├── main.py                 # Legacy entry point (thin wrapper)
+├── language_map.json       # (root copy kept for reference)
+└── youtube_auto_dub/       # Installable Python package
+    ├── __init__.py         # Package version
+    ├── __main__.py         # python -m youtube_auto_dub support
+    ├── cli.py              # Thin CLI adapter (argparse → pipeline)
+    ├── pipeline.py         # Pipeline orchestration logic
     ├── models.py           # Dataclasses (SubtitleSegment, ProjectContext)
     ├── youtube.py          # yt-dlp wrapper, audio extraction
-    ├── media.py            # Chunking, SRT generation, audio mixing, FFmpeg render
+    ├── media.py            # Chunking, SRT, mixing, FFmpeg render
     ├── googlev4.py         # Google Translate (RPC + scrape fallback)
-    ├── tts.py              # Edge TTS synthesis
-    └── ui.py               # Rich console logger
-
-.cache/                     # Downloaded videos (persists between runs)
-output/                     # Final rendered videos
-temp/                       # Intermediate files (cleared each run)
+    ├── tts.py              # Edge TTS synthesis with retry
+    ├── transcriber.py      # Whisper transcription + device manager
+    ├── renderer.py         # FFmpeg helper utilities
+    ├── segmenter.py        # Smart segmentation (dynamic chunking)
+    ├── config.py           # Config manager, language data loading
+    ├── exceptions.py       # Custom exception hierarchy
+    ├── utils.py            # General-purpose utilities
+    ├── engine.py           # Legacy AI Engine (preserved for BC)
+    └── language_map.json   # Language → voice mappings (package data)
+├── tests/
+│   ├── test_models.py      # Model dataclass tests
+│   ├── test_googlev4.py    # Translation shortcut tests (no network)
+│   └── test_tts.py         # Voice lookup tests
+.tests/
+├── .github/workflows/
+│   └── ci.yml              # Ruff lint + pytest on 3.10, 3.11, 3.12
+├── .cache/                 # Downloaded videos (persists between runs)
+├── output/                 # Final rendered videos
+└── temp/                   # Intermediate files (cleared each run)
 ```
 
 ---
@@ -167,6 +200,17 @@ On the backlog:
 ## Contributing
 
 Issues and PRs are open. If you're adding a new language to `language_map.json`, please include both a male and female voice where Edge TTS supports it.
+
+```bash
+# Dev install
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/ -v
+
+# Lint
+ruff check .
+```
 
 ---
 
