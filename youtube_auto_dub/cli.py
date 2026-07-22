@@ -1,39 +1,96 @@
 #!/usr/bin/env python3
-"""Thin CLI adapter — parse arguments and delegate to the pipeline."""
+"""CLI — global-standard flags, launch pipeline."""
 
 import argparse
 import asyncio
 import shutil
 
-from youtube_auto_dub.models import TEMP_DIR
-from youtube_auto_dub.pipeline import run_pipeline
+from youtube_auto_dub import __version__
+from youtube_auto_dub.core import run
+from youtube_auto_dub.models import DEFAULT_GENDER, DEFAULT_TTS_ENGINE, TEMP_DIR
 from youtube_auto_dub.ui import console
 
 
-def main() -> None:
-    """Entry point: parse CLI args, clean temp dir, and run the pipeline."""
-    parser = argparse.ArgumentParser(description="YouTube Auto Sub/Dub Studio")
-    parser.add_argument("url", help="YouTube video URL")
+def _parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="youtube-auto-dub",
+        description="Translate, subtitle, and dub any YouTube video automatically",
+    )
 
-    parser.add_argument("--lang", "-l", help="General target language (Default: vi)")
-    parser.add_argument("--lang_sub", "-ls", help="Subtitle language (Overrides --lang)")
-    parser.add_argument("--lang_dub", "-ld", help="Dubbing language (Overrides --lang)")
+    # ── Positional ────────────────────────────────────────────────────
+    p.add_argument("url", help="YouTube video URL")
 
-    parser.add_argument("--mode", "-m", choices=["sub", "dub", "both"], default="both", help="Processing mode")
-    parser.add_argument("--gender", "-g", choices=["male", "female"], default="female", help="Voice gender")
+    # ── Language ──────────────────────────────────────────────────────
+    lang = p.add_argument_group("Language")
+    lang.add_argument("-l", "--lang", default="en",
+                      help="Target language code (default: en)")
+    lang.add_argument("-s", "--sub-lang",
+                      help="Subtitle language (overrides --lang)")
+    lang.add_argument("-d", "--dub-lang",
+                      help="Dubbing language (overrides --lang)")
 
-    parser.add_argument("--browser", "-b", help="Browser to extract cookies from (chrome, edge, firefox)")
-    parser.add_argument("--whisper_model", "-wm", help="Whisper model (tiny, base, small, medium)")
 
-    args = parser.parse_args()
+    # ── Mode ──────────────────────────────────────────────────────────
+    mode = p.add_argument_group("Mode")
+    mode.add_argument("-m", "--mode", choices=["sub", "dub", "both"], default="both",
+                      help="Processing mode (default: both)")
+    mode.add_argument("-g", "--gender", choices=["male", "female"], default=DEFAULT_GENDER,
+                      help=f"Voice gender (default: {DEFAULT_GENDER})")
 
+    # ── Model ─────────────────────────────────────────────────────────
+    mdl = p.add_argument_group("Model")
+    mdl.add_argument("--model", "--whisper",
+                     help="Whisper model size: tiny, base, small, medium, large (default: auto)")
+    mdl.add_argument("-b", "--browser",
+                     help="Browser for cookie auth: chrome, edge, firefox")
+
+    # ── Engine ────────────────────────────────────────────────────────
+    eng = p.add_argument_group("Engine")
+    eng.add_argument("-e", "--tts-engine", choices=["edge", "qwen"], default=DEFAULT_TTS_ENGINE,
+                     help=f"TTS engine (default: {DEFAULT_TTS_ENGINE})")
+    eng.add_argument("--voice",
+                     help="Voice persona for Qwen3-TTS: narrator-m, young-f, etc.")
+    eng.add_argument("--voice-clone", action="store_true",
+                     help="Auto-clone voice from source audio (Qwen3-TTS only)")
+
+    # ── Processing ────────────────────────────────────────────────────
+    proc = p.add_argument_group("Processing")
+    proc.add_argument("--no-tempo", action="store_true",
+                      help="Disable tempo alignment (paste at original speed)")
+    proc.add_argument("--no-vad", action="store_true",
+                      help="Disable voice-activity detection")
+    proc.add_argument("--bg-music", action="store_true",
+                      help="Mix original background audio into dub")
+    proc.add_argument("-o", "--output-dir",
+                      help="Output directory (default: ./output)")
+
+    # ── Info ──────────────────────────────────────────────────────────
+    p.add_argument("--version", action="version",
+                   version=f"youtube-auto-dub v{__version__}")
+
+    return p
+
+
+def main():
+    p = _parser()
+    args = p.parse_args()
+
+    # Normalise internal attribute names for core.py
+    args.lang_sub = args.sub_lang
+    args.lang_dub = args.dub_lang
+    args.voice_theme = args.voice
+    args.auto_clone = args.voice_clone
+    args.preserve_bg = args.bg_music
+    args.whisper_model = args.model or getattr(args, "model", None)
+
+    # Clean temp
     if TEMP_DIR.exists():
         shutil.rmtree(TEMP_DIR, ignore_errors=True)
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
     try:
-        asyncio.run(run_pipeline(args))
+        asyncio.run(run(args))
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        console.print(f"\n[red]System Error: {e}[/red]")
+        console.print(f"\n[red]Error: {e}[/red]")

@@ -7,6 +7,13 @@ from typing import List
 import httpx
 from bs4 import BeautifulSoup
 
+from youtube_auto_dub.models import (
+    TRANSLATE_API_URL,
+    TRANSLATE_SCRAPE_URL,
+    TRANSLATE_TIMEOUT,
+    TRANSLATE_TOKEN_URL,
+    TRANSLATE_USER_AGENT,
+)
 from youtube_auto_dub.ui import console
 
 
@@ -14,15 +21,15 @@ class GoogleTranslator:
     """Google Translate client with RPC (primary) and web scrape (fallback)."""
 
     def __init__(self):
-        self.client = httpx.AsyncClient(timeout=30)
-        self.base_url_rpc = "https://translate.google.com/_/TranslateWebserverUi/data/batchexecute"
-        self.base_url_scrape = "https://translate.google.com/m"
-        self.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        self.client = httpx.AsyncClient(timeout=TRANSLATE_TIMEOUT)
+        self.base_url_rpc = TRANSLATE_API_URL
+        self.base_url_scrape = TRANSLATE_SCRAPE_URL
+        self.headers = {"User-Agent": TRANSLATE_USER_AGENT}
         self.bl = None
 
     async def _refresh_rpc_token(self):
         try:
-            response = await self.client.get("https://translate.google.com/", headers=self.headers)
+            response = await self.client.get(TRANSLATE_TOKEN_URL, headers=self.headers)
             bl_match = re.search(r'"cfb2h":"(.*?)"', response.text)
             if bl_match:
                 self.bl = bl_match.group(1)

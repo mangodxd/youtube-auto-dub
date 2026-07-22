@@ -1,9 +1,3 @@
-"""YouTube Auto Dub — Automated Video Translation and Dubbing."""
+"""YouTube Auto Dub — translate, subtitle, and dub any video automatically."""
 
-__version__ = "1.0.0"
-__author__ = "Nguyen Cong Thuan Huy (mangodxd)"
-
-__all__ = [
-    "__version__",
-    "__author__",
-]
+__version__ = "2.0.0"
