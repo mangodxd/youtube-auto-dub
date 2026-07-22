@@ -19,6 +19,7 @@ from youtube_auto_dub.googlev4 import GoogleTranslator
 from youtube_auto_dub.models import (
     AUDIO_DEFAULT_AMBIENT_GAIN,
     DEFAULT_TTS_ENGINE,
+    SR_TTS,
     TEMP_DIR,
     WHISPER_DEFAULT_MODEL,
     SubtitleSegment,
@@ -196,9 +197,13 @@ async def run(args) -> None:
             if use_tempo:
                 info_list = []
                 for seg in project.segments:
+                    tts_dur = 0.0
+                    if seg.tts_audio_path and seg.tts_audio_path.exists():
+                        import soundfile as sf
+                        tts_dur = len(sf.read(seg.tts_audio_path, dtype="float32")[0]) / SR_TTS
                     info_list.append({
                         "start": seg.start,
-                        "target_dur": seg.duration,
+                        "target_dur": tts_dur,
                         "wav_path": seg.tts_audio_path,
                     })
 
